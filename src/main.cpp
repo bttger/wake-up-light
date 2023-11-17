@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <ThreeWire.h>
 #include <RtcDS1302.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
 
 /**
  * --- Function prototypes ---
@@ -22,6 +24,28 @@ RtcDateTime getSunriseTime();
  * --- Constants ---
  */
 #define DELAY_TIME 2000
+#define SSID "sunrise"
+#define PASSWORD "sunrise1"
+// JSON response from the API:
+// {
+//   "sunrise_hour": 7,
+//   "sunrise_minute": 0
+//   "duration_min": 60
+// }
+#define SUNRISE_API_URL "https://raw.githubusercontent.com/bttger/wake-up-light/main/sunrise.json"
+// JSON response from the API (only unixtime key is relevant):
+// {
+//   "unixtime": 1700261973,
+//   ...
+// }
+#define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
+// If set to 1, the board will connect with the AP
+// (it will try for 30 seconds) and the sunrise time
+// will be fetched from the API, set in the RTC memory,
+// and the RTC will be updated by fetching the current time
+// from the API. After that, the board will turn off the
+// WiFi again and continue with the normal operation.
+#define UPDATE_STATE 1
 
 /**
  * --- Global variables ---
@@ -55,6 +79,10 @@ void setup()
     Rtc.SetIsRunning(true);
     RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
     Rtc.SetDateTime(compiled);
+  }
+
+  if (UPDATE_STATE)
+  {
   }
 }
 
