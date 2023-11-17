@@ -20,6 +20,13 @@ void saveSunriseConfig(int hour, int minute, int duration);
 // Function to retrieve the sunrise time
 RtcDateTime getSunriseTime();
 
+// Connect with the AP (try for 30 seconds), then fetch
+// the sunrise config from the API, set it in the RTC
+// memory, and update the RTC time by fetching the current
+// time from the time API. After that, turn off the
+// WiFi again.
+void updateBoardState();
+
 /**
  * --- Constants ---
  */
@@ -39,13 +46,7 @@ RtcDateTime getSunriseTime();
 //   ...
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
-// If set to 1, the board will connect with the AP
-// (it will try for 30 seconds), then fetch the sunrise config
-// from the API, set it in the RTC memory, and update the
-// RTC by fetching the current time from the API.
-// After that, the board will turn off the
-// WiFi again and continue with the normal operation.
-#define UPDATE_STATE 1
+#define UPDATE_BOARD_STATE 1
 
 /**
  * --- Global variables ---
@@ -88,9 +89,8 @@ void setup()
   sunrise_hour = sunrise_time.Hour();
   sunrise_minute = sunrise_time.Minute();
 
-  if (UPDATE_STATE)
-  {
-  }
+  if (UPDATE_BOARD_STATE)
+    updateBoardState();
 }
 
 void loop()
@@ -104,6 +104,10 @@ void loop()
 /**
  * --- Function definitions ---
  */
+
+void updateBoardState()
+{
+}
 
 void printDateTime(const RtcDateTime &dt)
 {
