@@ -14,8 +14,8 @@ void printDateTime(const RtcDateTime &dt);
 // Function to set the RTC date and time from Unix epoch time
 void setDateTimeFromEpoch(uint32_t epoch);
 
-// Function to save a specific time (e.g., sunrise time) into RTC memory
-void saveSunriseTime(int hour, int minute);
+// Function to save a sunrise configuration into RTC memory
+void saveSunriseConfig(int hour, int minute, int duration);
 
 // Function to retrieve the sunrise time
 RtcDateTime getSunriseTime();
@@ -40,10 +40,10 @@ RtcDateTime getSunriseTime();
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
 // If set to 1, the board will connect with the AP
-// (it will try for 30 seconds) and the sunrise time
-// will be fetched from the API, set in the RTC memory,
-// and the RTC will be updated by fetching the current time
-// from the API. After that, the board will turn off the
+// (it will try for 30 seconds), then fetch the sunrise config
+// from the API, set it in the RTC memory, and update the
+// RTC by fetching the current time from the API.
+// After that, the board will turn off the
 // WiFi again and continue with the normal operation.
 #define UPDATE_STATE 1
 
@@ -52,6 +52,8 @@ RtcDateTime getSunriseTime();
  */
 ThreeWire myWire(11, 12, 10); // DAT/IO, CLK, RST/CE/CS pin connections
 RtcDS1302<ThreeWire> Rtc(myWire);
+int sunrise_hour = 7;
+int sunrise_minute = 0;
 
 /**
  * --- Setup and loop ---
@@ -80,6 +82,11 @@ void setup()
     RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
     Rtc.SetDateTime(compiled);
   }
+
+  // Initialize the sunrise time from the RTC memory
+  RtcDateTime sunrise_time = getSunriseTime();
+  sunrise_hour = sunrise_time.Hour();
+  sunrise_minute = sunrise_time.Minute();
 
   if (UPDATE_STATE)
   {
@@ -120,10 +127,11 @@ void setDateTimeFromEpoch(uint32_t epoch)
   Rtc.SetDateTime(dt);
 }
 
-void saveSunriseTime(int hour, int minute)
+void saveSunriseConfig(int hour, int minute, int duration)
 {
   Rtc.SetMemory((uint8_t)0, (uint8_t)hour);
   Rtc.SetMemory((uint8_t)1, (uint8_t)minute);
+  Rtc.SetMemory((uint8_t)2, (uint8_t)duration);
 }
 
 RtcDateTime getSunriseTime()
