@@ -29,6 +29,9 @@ RtcDateTime getSunriseTime();
 ThreeWire myWire(11, 12, 10); // DAT/IO, CLK, RST/CE/CS pin connections
 RtcDS1302<ThreeWire> Rtc(myWire);
 
+/**
+ * --- Setup and loop ---
+ */
 void setup()
 {
   Serial.begin(9600);
