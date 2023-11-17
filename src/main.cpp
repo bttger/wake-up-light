@@ -13,9 +13,9 @@ void printDateTime(const RtcDateTime &dt);
 void setDateTimeFromEpoch(uint32_t epoch);
 
 // Function to save a specific time (e.g., sunrise time) into RTC memory
-void saveSunriseTime(int day, int hour, int minute);
+void saveSunriseTime(int hour, int minute);
 
-// Function to retrieve the current day's sunrise time
+// Function to retrieve the sunrise time
 RtcDateTime getSunriseTime();
 
 /**
@@ -89,22 +89,23 @@ void setDateTimeFromEpoch(uint32_t epoch)
   Rtc.SetDateTime(dt);
 }
 
-void saveSunriseTime(int day, int hour, int minute)
+void saveSunriseTime(int hour, int minute)
 {
-  Rtc.SetMemory((uint8_t)0, (uint8_t)day);
-  Rtc.SetMemory((uint8_t)1, (uint8_t)hour);
-  Rtc.SetMemory((uint8_t)2, (uint8_t)minute);
+  Rtc.SetMemory((uint8_t)0, (uint8_t)hour);
+  Rtc.SetMemory((uint8_t)1, (uint8_t)minute);
 }
 
 RtcDateTime getSunriseTime()
 {
-  // Retrieve day, hour, and minute from RTC memory
-  int day = Rtc.GetMemory(0);
-  int hour = Rtc.GetMemory(1);
-  int minute = Rtc.GetMemory(2);
+  // Retrieve hour and minute from RTC memory
+  int hour = Rtc.GetMemory(0);
+  int minute = Rtc.GetMemory(1);
 
-  // Create a temporary RtcDateTime object with retrieved values
-  // Assuming the year, month, and second are not important for this use case
-  RtcDateTime sunriseTime = RtcDateTime(0, 1, day, hour, minute, 0);
-  return sunriseTime;
+  // If values are invalid, return a default time of 07:00
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59)
+  {
+    return RtcDateTime(0, 1, 1, 7, 0, 0);
+  }
+
+  return RtcDateTime(0, 1, 1, hour, minute, 0);
 }
