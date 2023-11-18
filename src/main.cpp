@@ -65,6 +65,10 @@ void updateBoardState();
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
 #define UPDATE_BOARD_STATE 1
+#define IO_PIN_LED 5
+#define PWM_CHANNEL 0      // 0-15
+#define PWM_FREQUENCY 5000 // 5 kHz
+#define PWM_RESOLUTION 8   // 8-bit resolution (0-255)
 
 /**
  * --- Global variables ---
@@ -104,6 +108,10 @@ void setup()
   // Initialize the sunrise config from the RTC memory
   config = getSunriseConfig();
 
+  // Initialize PWM
+  ledcSetup(PWM_CHANNEL, PWM_FREQUENCY, PWM_RESOLUTION);
+  ledcAttachPin(IO_PIN_LED, PWM_CHANNEL);
+
   if (UPDATE_BOARD_STATE)
     updateBoardState();
 }
@@ -114,7 +122,13 @@ void loop()
   printDateTime(now);
   Serial.println();
   printSunriseConfig(config);
-  delay(DELAY_TIME);
+
+  // DEBUG: Go through 5 different brightness levels
+  for (int i = 0; i < 5; i++)
+  {
+    ledcWrite(PWM_CHANNEL, 51 * i);
+    delay(DELAY_TIME);
+  }
 }
 
 /**
@@ -134,7 +148,7 @@ void updateBoardState()
   }
   if (WiFi.status() != WL_CONNECTED)
   {
-    Serial.println("Failed to connect to WiFi. Please check your credentials");
+    Serial.println("Failed to connect to WiFi.");
     return;
   }
   Serial.println("Connected to WiFi");
