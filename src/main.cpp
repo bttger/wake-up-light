@@ -48,10 +48,12 @@ void updateBoardState();
 // at the bottom.
 void debugLedPwm();
 
+// Start the sunrise sequence with the given config
+void startSunrise(int durationMins);
+
 /**
  * --- Constants ---
  */
-#define DELAY_TIME 500
 #define SSID "sunrise"
 #define PASSWORD "sunrise1"
 #define WIFI_ATTEMPT_TIME_SECS 5
@@ -93,7 +95,7 @@ void setup()
   Serial.begin(9600);
 #if WAIT_FOR_SERIAL_OUTPUT
   while (!Serial)
-    delay(DELAY_TIME);
+    delay(1000);
 #endif
 
   Rtc.Begin();
@@ -139,6 +141,14 @@ void setup()
 
 void loop()
 {
+  RtcDateTime now = Rtc.GetDateTime();
+  if (now.Hour() + config.utcOffset == config.hour && now.Minute() == config.minute)
+  {
+    Serial.print("Starting sunrise sequence at ");
+    printDateTime(now);
+    startSunrise(config.duration);
+  }
+  delay(5000);
 }
 
 /**
@@ -288,5 +298,27 @@ void debugLedPwm()
       reverse = 0;
       delay(2000);
     }
+  }
+}
+
+void startSunrise(int durationMins)
+{
+  int durationMillis = durationMins * 60000;
+  int startMillis = millis();
+  int lastMillis;
+  while (1)
+  {
+    lastMillis = millis();
+    int elapsedMillis = lastMillis - startMillis;
+    if (elapsedMillis >= durationMillis)
+    {
+      // Sunrise is over, turn off the LED and break out of the loop
+      ledcWrite(PWM_CHANNEL, 0);
+      break;
+    }
+    // Calculate the duty cycle (later use exponential function)
+    int dutyCycle = (elapsedMillis / durationMillis) * 255;
+    ledcWrite(PWM_CHANNEL, dutyCycle);
+    delay(100);
   }
 }
