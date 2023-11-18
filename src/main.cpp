@@ -43,13 +43,18 @@ SunriseConfig getSunriseConfig();
 // WiFi again.
 void updateBoardState();
 
+// Debug function to test the LED PWM. The LED should
+// fade in and out indefinitely with a 2 second pause
+// at the bottom.
+void debugLedPwm();
+
 /**
  * --- Constants ---
  */
-#define DELAY_TIME 2000
+#define DELAY_TIME 500
 #define SSID "sunrise"
 #define PASSWORD "sunrise1"
-#define WIFI_ATTEMPT_TIME_SECS 10
+#define WIFI_ATTEMPT_TIME_SECS 5
 // JSON response from the API:
 // {
 //   "sunrise_hour": 7,
@@ -64,8 +69,10 @@ void updateBoardState();
 //   ...
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
-#define UPDATE_BOARD_STATE 0
+#define UPDATE_BOARD_STATE 1
 #define WAIT_FOR_SERIAL_OUTPUT 0
+#define DEBUG_INFO 1
+#define DEBUG_LED_PWM 0
 #define IO_PIN_LED 5
 #define PWM_CHANNEL 0      // 0-15
 #define PWM_FREQUENCY 5000 // 5 kHz
@@ -84,12 +91,10 @@ SunriseConfig config;
 void setup()
 {
   Serial.begin(9600);
-  if (WAIT_FOR_SERIAL_OUTPUT)
-  {
-    while (!Serial)
-      delay(DELAY_TIME);
-  }
-  Serial.println("Wake-Up-Light");
+#if WAIT_FOR_SERIAL_OUTPUT
+  while (!Serial)
+    delay(DELAY_TIME);
+#endif
 
   Rtc.Begin();
 
@@ -112,29 +117,28 @@ void setup()
   // Initialize the sunrise config from the RTC memory
   config = getSunriseConfig();
 
-  // Initialize PWM
-  ledcSetup(PWM_CHANNEL, PWM_FREQUENCY, PWM_RESOLUTION);
-  ledcAttachPin(IO_PIN_LED, PWM_CHANNEL);
-
-  if (UPDATE_BOARD_STATE)
-    updateBoardState();
-}
-
-void loop()
-{
+#if DEBUG_INFO
   RtcDateTime now = Rtc.GetDateTime();
   printDateTime(now);
   Serial.println();
   printSunriseConfig(config);
+#endif
 
-  // DEBUG: Go through 5 different brightness levels
-  for (int i = 0; i <= 5; i++)
-  {
-    Serial.print("Setting brightness to ");
-    Serial.println(51 * i);
-    ledcWrite(PWM_CHANNEL, 51 * i);
-    delay(DELAY_TIME);
-  }
+  // Initialize PWM
+  ledcSetup(PWM_CHANNEL, PWM_FREQUENCY, PWM_RESOLUTION);
+  ledcAttachPin(IO_PIN_LED, PWM_CHANNEL);
+
+#if DEBUG_LED_PWM
+  debugLedPwm();
+#endif
+
+#if UPDATE_BOARD_STATE
+  updateBoardState();
+#endif
+}
+
+void loop()
+{
 }
 
 /**
@@ -266,4 +270,23 @@ SunriseConfig getSunriseConfig()
   }
 
   return {hour, minute, duration, utcOffset};
+}
+
+void debugLedPwm()
+{
+  int reverse = 0;
+  int dutyCycle = 0;
+  while (1)
+  {
+    ledcWrite(PWM_CHANNEL, dutyCycle);
+    delay(10);
+    dutyCycle += reverse ? -1 : 1;
+    if (dutyCycle == 255)
+      reverse = 1;
+    if (dutyCycle == 0)
+    {
+      reverse = 0;
+      delay(2000);
+    }
+  }
 }
