@@ -6,7 +6,7 @@
 #include <ArduinoJson.h>
 
 /**
- * Type definitions
+ * --- Type definitions ---
  */
 
 struct SunriseConfig
@@ -23,6 +23,9 @@ struct SunriseConfig
 
 // Print the date and time to the serial monitor
 void printDateTime(const RtcDateTime &dt);
+
+// Print the sunrise config to the serial monitor
+void printSunriseConfig(SunriseConfig config);
 
 // Set the RTC date and time from Unix epoch time
 void setDateTimeFromUnixEpoch(uint32_t epoch);
@@ -46,6 +49,7 @@ void updateBoardState();
 #define DELAY_TIME 2000
 #define SSID "sunrise"
 #define PASSWORD "sunrise1"
+#define WIFI_ATTEMPT_TIME_SECS 10
 // JSON response from the API:
 // {
 //   "sunrise_hour": 7,
@@ -109,6 +113,7 @@ void loop()
   RtcDateTime now = Rtc.GetDateTime();
   printDateTime(now);
   Serial.println();
+  printSunriseConfig(config);
   delay(DELAY_TIME);
 }
 
@@ -122,7 +127,7 @@ void updateBoardState()
   WiFi.begin(SSID, PASSWORD);
   Serial.println("Connecting to WiFi...");
   unsigned long startAttemptTime = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 30000)
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < WIFI_ATTEMPT_TIME_SECS * 1000)
   {
     delay(1000);
     Serial.print(".");
@@ -164,7 +169,7 @@ void updateBoardState()
   if (httpResponseCode > 0)
   {
     String payload = http.getString();
-    StaticJsonDocument<300> doc;
+    StaticJsonDocument<500> doc;
     deserializeJson(doc, payload);
     setDateTimeFromUnixEpoch(doc["unixtime"]);
     Serial.println("RTC time updated");
@@ -195,6 +200,19 @@ void printDateTime(const RtcDateTime &dt)
              dt.Minute(),
              dt.Second());
   Serial.print(datestring);
+}
+
+void printSunriseConfig(SunriseConfig config)
+{
+  Serial.print("Sunrise config: ");
+  Serial.print(config.hour);
+  Serial.print(":");
+  Serial.print(config.minute);
+  Serial.print(" (");
+  Serial.print(config.duration);
+  Serial.print(" min, UTC");
+  Serial.print(config.utcOffset);
+  Serial.println(")");
 }
 
 void setDateTimeFromUnixEpoch(uint32_t epoch)
