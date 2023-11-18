@@ -305,19 +305,25 @@ void startSunrise(int durationMins)
 {
   int durationMillis = durationMins * 60000;
   int startMillis = millis();
-  int lastMillis;
+  float exponent = 2.2;
+
   while (1)
   {
-    lastMillis = millis();
-    int elapsedMillis = lastMillis - startMillis;
+    int currentMillis = millis();
+    int elapsedMillis = currentMillis - startMillis;
+
     if (elapsedMillis >= durationMillis)
     {
       // Sunrise is over, turn off the LED and break out of the loop
       ledcWrite(PWM_CHANNEL, 0);
       break;
     }
-    // Calculate the duty cycle (later use exponential function)
-    int dutyCycle = (elapsedMillis / durationMillis) * 255;
+
+    // Calculate the exponential duty cycle
+    float progress = (float)elapsedMillis / (float)durationMillis; // Normalized progress between 0 and 1
+    float exponentialProgress = pow(progress, exponent);           // Apply exponential function
+    int dutyCycle = (int)(exponentialProgress * 255);              // Map the exponential progress to duty cycle
+
     ledcWrite(PWM_CHANNEL, dutyCycle);
     delay(100);
   }
