@@ -14,6 +14,7 @@ struct SunriseConfig
   int hour;
   int minute;
   int duration;
+  int utcOffset;
 };
 
 /**
@@ -48,8 +49,9 @@ void updateBoardState();
 // JSON response from the API:
 // {
 //   "sunrise_hour": 7,
-//   "sunrise_minute": 0
-//   "duration_min": 60
+//   "sunrise_minute": 0,
+//   "duration_min": 60,
+//   "utc_offset": 0
 // }
 #define SUNRISE_API_URL "https://raw.githubusercontent.com/bttger/wake-up-light/main/sunrise.json"
 // JSON response from the API (only unixtime key is relevant):
@@ -146,7 +148,7 @@ void updateBoardState()
     String payload = http.getString();
     StaticJsonDocument<200> doc;
     deserializeJson(doc, payload);
-    saveSunriseConfig({doc["sunrise_hour"], doc["sunrise_minute"], doc["duration_min"]});
+    saveSunriseConfig({doc["sunrise_hour"], doc["sunrise_minute"], doc["duration_min"], doc["utc_offset"]});
     Serial.println("Sunrise configuration updated");
   }
   else
@@ -207,6 +209,7 @@ void saveSunriseConfig(SunriseConfig config)
   Rtc.SetMemory((uint8_t)0, (uint8_t)config.hour);
   Rtc.SetMemory((uint8_t)1, (uint8_t)config.minute);
   Rtc.SetMemory((uint8_t)2, (uint8_t)config.duration);
+  Rtc.SetMemory((uint8_t)3, (uint8_t)config.utcOffset);
 }
 
 SunriseConfig getSunriseConfig()
@@ -215,13 +218,14 @@ SunriseConfig getSunriseConfig()
   int hour = Rtc.GetMemory(0);
   int minute = Rtc.GetMemory(1);
   int duration = Rtc.GetMemory(2);
+  int utcOffset = Rtc.GetMemory(3);
 
   // If values are invalid, return a default time of 07:00
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || duration < 0 || duration > 120)
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || duration < 0 || duration > 120 || utcOffset < -12 || utcOffset > 12)
   {
     Serial.println("Invalid sunrise config on RTC memory, using default");
-    return {7, 0, 60};
+    return {7, 0, 60, 1};
   }
 
-  return {hour, minute, duration};
+  return {hour, minute, duration, utcOffset};
 }
