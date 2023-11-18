@@ -64,7 +64,7 @@ void updateBoardState();
 //   ...
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
-#define UPDATE_BOARD_STATE 1
+#define UPDATE_BOARD_STATE 0
 #define IO_PIN_LED 5
 #define PWM_CHANNEL 0      // 0-15
 #define PWM_FREQUENCY 5000 // 5 kHz
@@ -124,8 +124,10 @@ void loop()
   printSunriseConfig(config);
 
   // DEBUG: Go through 5 different brightness levels
-  for (int i = 0; i < 5; i++)
+  for (int i = 0; i <= 5; i++)
   {
+    Serial.print("Setting brightness to ");
+    Serial.println(51 * i);
     ledcWrite(PWM_CHANNEL, 51 * i);
     delay(DELAY_TIME);
   }
