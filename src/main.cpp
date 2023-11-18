@@ -127,7 +127,8 @@ void printDateTime(const RtcDateTime &dt)
 
 void setDateTimeFromEpoch(uint32_t epoch)
 {
-  RtcDateTime dt = RtcDateTime(epoch);
+  RtcDateTime dt;
+  dt.InitWithUnix32Time(epoch);
   Rtc.SetDateTime(dt);
 }
 
