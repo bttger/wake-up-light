@@ -65,6 +65,7 @@ void updateBoardState();
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
 #define UPDATE_BOARD_STATE 0
+#define WAIT_FOR_SERIAL_OUTPUT 0
 #define IO_PIN_LED 5
 #define PWM_CHANNEL 0      // 0-15
 #define PWM_FREQUENCY 5000 // 5 kHz
@@ -83,8 +84,11 @@ SunriseConfig config;
 void setup()
 {
   Serial.begin(9600);
-  while (!Serial)
-    delay(DELAY_TIME); // time to get serial running
+  if (WAIT_FOR_SERIAL_OUTPUT)
+  {
+    while (!Serial)
+      delay(DELAY_TIME);
+  }
   Serial.println("Wake-Up-Light");
 
   Rtc.Begin();
