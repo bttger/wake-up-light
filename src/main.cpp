@@ -3,22 +3,34 @@
 #include <RtcDS1302.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+/**
+ * Type definitions
+ */
+
+struct SunriseConfig
+{
+  int hour;
+  int minute;
+  int duration;
+};
 
 /**
  * --- Function prototypes ---
  */
 
-// Function to print the date and time
+// Print the date and time to the serial monitor
 void printDateTime(const RtcDateTime &dt);
 
-// Function to set the RTC date and time from Unix epoch time
-void setDateTimeFromEpoch(uint32_t epoch);
+// Set the RTC date and time from Unix epoch time
+void setDateTimeFromUnixEpoch(uint32_t epoch);
 
-// Function to save a sunrise configuration into RTC memory
-void saveSunriseConfig(int hour, int minute, int duration);
+// Save a sunrise configuration into RTC memory
+void saveSunriseConfig(SunriseConfig config);
 
-// Function to retrieve the sunrise time
-RtcDateTime getSunriseTime();
+// Retrieve the sunrise config from the RTC memory
+SunriseConfig getSunriseConfig();
 
 // Connect with the AP (try for 30 seconds), then fetch
 // the sunrise config from the API, set it in the RTC
@@ -53,8 +65,7 @@ void updateBoardState();
  */
 ThreeWire myWire(11, 12, 10); // DAT/IO, CLK, RST/CE/CS pin connections
 RtcDS1302<ThreeWire> Rtc(myWire);
-int sunrise_hour = 7;
-int sunrise_minute = 0;
+SunriseConfig config;
 
 /**
  * --- Setup and loop ---
@@ -84,10 +95,8 @@ void setup()
     Rtc.SetDateTime(compiled);
   }
 
-  // Initialize the sunrise time from the RTC memory
-  RtcDateTime sunrise_time = getSunriseTime();
-  sunrise_hour = sunrise_time.Hour();
-  sunrise_minute = sunrise_time.Minute();
+  // Initialize the sunrise config from the RTC memory
+  config = getSunriseConfig();
 
   if (UPDATE_BOARD_STATE)
     updateBoardState();
@@ -107,6 +116,67 @@ void loop()
 
 void updateBoardState()
 {
+  // Connect to Wi-Fi
+  WiFi.begin(SSID, PASSWORD);
+  Serial.println("Connecting to WiFi...");
+  unsigned long startAttemptTime = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 30000)
+  {
+    delay(1000);
+    Serial.print(".");
+  }
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.println("Failed to connect to WiFi. Please check your credentials");
+    return;
+  }
+  Serial.println("Connected to WiFi");
+
+  // Create a WiFiClientSecure object
+  WiFiClientSecure secureClient;
+  secureClient.setInsecure(); // Allow connection without certificate
+
+  HTTPClient http;
+
+  // Fetch sunrise config
+  http.begin(secureClient, SUNRISE_API_URL);
+  int httpResponseCode = http.GET();
+  if (httpResponseCode > 0)
+  {
+    String payload = http.getString();
+    StaticJsonDocument<200> doc;
+    deserializeJson(doc, payload);
+    saveSunriseConfig({doc["sunrise_hour"], doc["sunrise_minute"], doc["duration_min"]});
+    Serial.println("Sunrise configuration updated");
+  }
+  else
+  {
+    Serial.print("Error on fetching sunrise data: ");
+    Serial.println(httpResponseCode);
+  }
+  http.end(); // Free resources
+
+  // Fetch current Unix time using non-secure http request
+  http.begin(TIME_API_URL);
+  httpResponseCode = http.GET();
+  if (httpResponseCode > 0)
+  {
+    String payload = http.getString();
+    StaticJsonDocument<300> doc;
+    deserializeJson(doc, payload);
+    setDateTimeFromUnixEpoch(doc["unixtime"]);
+    Serial.println("RTC time updated");
+  }
+  else
+  {
+    Serial.print("Error on fetching time data: ");
+    Serial.println(httpResponseCode);
+  }
+  http.end(); // Free resources
+
+  // Disconnect Wi-Fi
+  WiFi.disconnect(true);
+  Serial.println("Disconnected from WiFi");
 }
 
 void printDateTime(const RtcDateTime &dt)
@@ -125,31 +195,33 @@ void printDateTime(const RtcDateTime &dt)
   Serial.print(datestring);
 }
 
-void setDateTimeFromEpoch(uint32_t epoch)
+void setDateTimeFromUnixEpoch(uint32_t epoch)
 {
   RtcDateTime dt;
   dt.InitWithUnix32Time(epoch);
   Rtc.SetDateTime(dt);
 }
 
-void saveSunriseConfig(int hour, int minute, int duration)
+void saveSunriseConfig(SunriseConfig config)
 {
-  Rtc.SetMemory((uint8_t)0, (uint8_t)hour);
-  Rtc.SetMemory((uint8_t)1, (uint8_t)minute);
-  Rtc.SetMemory((uint8_t)2, (uint8_t)duration);
+  Rtc.SetMemory((uint8_t)0, (uint8_t)config.hour);
+  Rtc.SetMemory((uint8_t)1, (uint8_t)config.minute);
+  Rtc.SetMemory((uint8_t)2, (uint8_t)config.duration);
 }
 
-RtcDateTime getSunriseTime()
+SunriseConfig getSunriseConfig()
 {
   // Retrieve hour and minute from RTC memory
   int hour = Rtc.GetMemory(0);
   int minute = Rtc.GetMemory(1);
+  int duration = Rtc.GetMemory(2);
 
   // If values are invalid, return a default time of 07:00
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59)
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || duration < 0 || duration > 120)
   {
-    return RtcDateTime(0, 1, 1, 7, 0, 0);
+    Serial.println("Invalid sunrise config on RTC memory, using default");
+    return {7, 0, 60};
   }
 
-  return RtcDateTime(0, 1, 1, hour, minute, 0);
+  return {hour, minute, duration};
 }
