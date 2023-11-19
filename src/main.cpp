@@ -68,7 +68,7 @@ void startSunrise(int durationMins, int keepOnForMins);
 //   "keepLightOnMinutes": 30,
 //   "utcOffset": 0
 // }
-#define SUNRISE_API_URL "https://raw.githubusercontent.com/bttger/wake-up-light/main/sunrise.json"
+#define SUNRISE_API_URL "https://raw.githubusercontent.com/bttger/wake-up-light/my-config/sunrise.json"
 // JSON response from the API (only unixtime key is relevant):
 // {
 //   "unixtime": 1700261973,
