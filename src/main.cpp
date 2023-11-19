@@ -52,6 +52,9 @@ void debugLedPwm();
 // Start the sunrise sequence with the given config
 void startSunrise(int durationMins, int keepOnForMins);
 
+// Hibernate the board until the next sunrise
+void hibernateUntilNextSunrise();
+
 /**
  * --- Constants ---
  */
@@ -139,6 +142,8 @@ void setup()
 #if UPDATE_BOARD_STATE
   updateBoardState();
 #endif
+
+  hibernateUntilNextSunrise();
 }
 
 void loop()
@@ -336,5 +341,26 @@ void startSunrise(int durationMins, int keepOnForMins)
 
     ledcWrite(PWM_CHANNEL, dutyCycle);
     delay(20);
+  }
+}
+
+void hibernateUntilNextSunrise()
+{
+  RtcDateTime now = Rtc.GetDateTime();
+  RtcDateTime nextSunrise(now.Year(), now.Month(), now.Day(), config.hour - config.utcOffset, config.minute, 0);
+
+  if (nextSunrise < now)
+  {
+    nextSunrise += 86400; // Add one day
+  }
+
+  int secondsUntilNextSunrise = nextSunrise.TotalSeconds() - now.TotalSeconds();
+  if (secondsUntilNextSunrise > 60)
+  {
+    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
+    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
+    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
+    esp_sleep_enable_timer_wakeup((secondsUntilNextSunrise - 60) * 1000000);
+    esp_deep_sleep_start();
   }
 }

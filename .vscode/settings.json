@@ -1,4 +1,4 @@
 {
-  "cSpell.words": ["Adafruit", "countof", "ledc", "SEALEVELPRESSURE"],
+  "cSpell.words": ["Adafruit", "countof", "ledc", "PERIPH"],
   "cmake.configureOnOpen": false
 }
