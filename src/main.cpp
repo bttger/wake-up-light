@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "secrets.h"
 
 /**
  * --- Type definitions ---
@@ -55,8 +56,6 @@ void startSunrise(int durationMins, int keepOnForMins);
  * --- Constants ---
  */
 #define UPDATE_BOARD_STATE 1
-#define SSID "sunrise"
-#define PASSWORD "sunrise1"
 #define WIFI_ATTEMPT_TIME_SECS 10
 // JSON response from the API:
 // {
@@ -161,7 +160,7 @@ void loop()
 void updateBoardState()
 {
   // Connect to Wi-Fi
-  WiFi.begin(SSID, PASSWORD);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.println("Connecting to WiFi...");
   unsigned long startAttemptTime = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < WIFI_ATTEMPT_TIME_SECS * 1000)
