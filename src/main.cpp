@@ -49,11 +49,12 @@ void updateBoardState();
 void debugLedPwm();
 
 // Start the sunrise sequence with the given config
-void startSunrise(int durationMins);
+void startSunrise(int durationMins, int keepOnForMins);
 
 /**
  * --- Constants ---
  */
+#define UPDATE_BOARD_STATE 1
 #define SSID "sunrise"
 #define PASSWORD "sunrise1"
 #define WIFI_ATTEMPT_TIME_SECS 5
@@ -71,14 +72,14 @@ void startSunrise(int durationMins);
 //   ...
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
-#define UPDATE_BOARD_STATE 1
 #define WAIT_FOR_SERIAL_OUTPUT 0
-#define DEBUG_INFO 1
+#define DEBUG_INFO 0
 #define DEBUG_LED_PWM 0
 #define IO_PIN_LED 5
-#define PWM_CHANNEL 0      // 0-15
-#define PWM_FREQUENCY 5000 // 5 kHz
-#define PWM_RESOLUTION 8   // 8-bit resolution (0-255)
+#define PWM_CHANNEL 0 // 0-15
+#define PWM_FREQUENCY 5000
+#define PWM_RESOLUTION 12
+#define PWM_MAX_DUTY_CYCLE pow(2, PWM_RESOLUTION) - 1
 
 /**
  * --- Global variables ---
@@ -131,6 +132,7 @@ void setup()
   ledcAttachPin(IO_PIN_LED, PWM_CHANNEL);
 
 #if DEBUG_LED_PWM
+  startSunrise(2, 0);
   debugLedPwm();
 #endif
 
@@ -146,7 +148,7 @@ void loop()
   {
     Serial.print("Starting sunrise sequence at ");
     printDateTime(now);
-    startSunrise(config.duration);
+    startSunrise(config.duration, 30);
   }
   delay(5000);
 }
@@ -288,11 +290,13 @@ void debugLedPwm()
   int dutyCycle = 0;
   while (1)
   {
+    dutyCycle += reverse ? -1 : 1;
     ledcWrite(PWM_CHANNEL, dutyCycle);
     delay(10);
-    dutyCycle += reverse ? -1 : 1;
-    if (dutyCycle == 255)
+    if (dutyCycle == PWM_MAX_DUTY_CYCLE)
       reverse = 1;
+    if (dutyCycle == 1)
+      delay(2000);
     if (dutyCycle == 0)
     {
       reverse = 0;
@@ -301,13 +305,11 @@ void debugLedPwm()
   }
 }
 
-void startSunrise(int durationMins)
+void startSunrise(int durationMins, int keepOnForMins)
 {
   int durationMillis = durationMins * 60000;
   int startMillis = millis();
-  float exponent = 2.2;
-  float minProgress = 0.1;         // 10% starting progress
-  float range = 1.0 - minProgress; // Adjusted range for progress
+  float exponent = 1.8;
 
   while (1)
   {
@@ -316,20 +318,18 @@ void startSunrise(int durationMins)
 
     if (elapsedMillis >= durationMillis)
     {
-      // Sunrise is over, keep the LED on for 30 more minutes
+      // Sunrise is over, keep the LED on for some time
+      delay(keepOnForMins * 60000);
       ledcWrite(PWM_CHANNEL, 0);
-      delay(1800000);
       break;
     }
 
-    // Adjust the progress to start at minProgress
-    float progress = ((float)elapsedMillis / (float)durationMillis) * range + minProgress;
+    // Calculate the exponential duty cycle
+    float progress = (float)elapsedMillis / (float)durationMillis;
     float exponentialProgress = pow(progress, exponent);
-
-    // Map the exponential progress to duty cycle, making sure we don't exceed 255
-    int dutyCycle = (int)(exponentialProgress * 255 / pow(1.0, exponent));
+    int dutyCycle = (int)(exponentialProgress * PWM_MAX_DUTY_CYCLE);
 
     ledcWrite(PWM_CHANNEL, dutyCycle);
-    delay(100);
+    delay(20);
   }
 }
