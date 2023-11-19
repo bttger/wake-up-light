@@ -76,7 +76,8 @@ void hibernateUntilNextSunrise();
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
 #define WAIT_FOR_SERIAL_OUTPUT 0
-#define DEBUG_INFO 0
+#define HIBERNATE_AFTER_MINUTES 5
+#define DEBUG_INFO 1
 #define DEBUG_LED_PWM 0
 #define IO_PIN_LED 5
 #define PWM_CHANNEL 0 // 0-15
@@ -357,6 +358,14 @@ void hibernateUntilNextSunrise()
   int secondsUntilNextSunrise = nextSunrise.TotalSeconds() - now.TotalSeconds();
   if (secondsUntilNextSunrise > 60)
   {
+    // Do not immediately hibernate; wait for HIBERNATE_AFTER_MINUTES to allow
+    // flashing the board again if needed
+    secondsUntilNextSunrise -= HIBERNATE_AFTER_MINUTES * 60;
+    delay(HIBERNATE_AFTER_MINUTES * 60000);
+
+    Serial.print("Hibernating for ");
+    Serial.print(secondsUntilNextSunrise);
+    Serial.println(" seconds");
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
