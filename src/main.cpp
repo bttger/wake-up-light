@@ -143,12 +143,12 @@ void setup()
 #if UPDATE_BOARD_STATE
   updateBoardState();
 #endif
-
-  hibernateUntilNextSunrise();
 }
 
 void loop()
 {
+  hibernateUntilNextSunrise();
+
   RtcDateTime now = Rtc.GetDateTime();
   if (now.Hour() + config.utcOffset == config.hour && now.Minute() == config.minute)
   {
@@ -347,6 +347,7 @@ void startSunrise(int durationMins, int keepOnForMins)
 
 void hibernateUntilNextSunrise()
 {
+  int bufferSeconds = 60; // Add a buffer to avoid missing the sunrise when booting up after hibernation
   RtcDateTime now = Rtc.GetDateTime();
   RtcDateTime nextSunrise(now.Year(), now.Month(), now.Day(), config.hour - config.utcOffset, config.minute, 0);
 
@@ -356,11 +357,13 @@ void hibernateUntilNextSunrise()
   }
 
   int secondsUntilNextSunrise = nextSunrise.TotalSeconds() - now.TotalSeconds();
-  if (secondsUntilNextSunrise > 60)
+
+  // Do not immediately hibernate; wait for HIBERNATE_AFTER_MINUTES to allow
+  // flashing the board again if needed.
+  secondsUntilNextSunrise -= HIBERNATE_AFTER_MINUTES * 60;
+
+  if (secondsUntilNextSunrise > bufferSeconds)
   {
-    // Do not immediately hibernate; wait for HIBERNATE_AFTER_MINUTES to allow
-    // flashing the board again if needed
-    secondsUntilNextSunrise -= HIBERNATE_AFTER_MINUTES * 60;
     delay(HIBERNATE_AFTER_MINUTES * 60000);
 
     Serial.print("Hibernating for ");
@@ -369,7 +372,7 @@ void hibernateUntilNextSunrise()
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-    esp_sleep_enable_timer_wakeup((secondsUntilNextSunrise - 60) * 1000000);
+    esp_sleep_enable_timer_wakeup((secondsUntilNextSunrise - bufferSeconds) * 1000000);
     esp_deep_sleep_start();
   }
 }
