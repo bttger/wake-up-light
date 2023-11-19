@@ -31,7 +31,7 @@ void printSunriseConfig(SunriseConfig config);
 // Set the RTC date and time from Unix epoch time
 void setDateTimeFromUnixEpoch(uint32_t epoch);
 
-// Save a sunrise configuration into RTC memory
+// Save a sunrise configuration into global variable and RTC memory
 void saveSunriseConfig(SunriseConfig config);
 
 // Retrieve the sunrise config from the RTC memory
@@ -58,7 +58,7 @@ void startSunrise(int durationMins, int keepOnForMins);
 #define UPDATE_BOARD_STATE 1
 #define SSID "sunrise"
 #define PASSWORD "sunrise1"
-#define WIFI_ATTEMPT_TIME_SECS 5
+#define WIFI_ATTEMPT_TIME_SECS 10
 // JSON response from the API:
 // {
 //   "sunriseHour": 7,
@@ -262,13 +262,14 @@ void setDateTimeFromUnixEpoch(uint32_t epoch)
   Rtc.SetDateTime(dt);
 }
 
-void saveSunriseConfig(SunriseConfig config)
+void saveSunriseConfig(SunriseConfig _config)
 {
-  Rtc.SetMemory((uint8_t)0, (uint8_t)config.hour);
-  Rtc.SetMemory((uint8_t)1, (uint8_t)config.minute);
-  Rtc.SetMemory((uint8_t)2, (uint8_t)config.durationMinutes);
-  Rtc.SetMemory((uint8_t)3, (uint8_t)config.keepLightOnMinutes);
-  Rtc.SetMemory((uint8_t)4, (uint8_t)config.utcOffset);
+  config = _config;
+  Rtc.SetMemory((uint8_t)0, (uint8_t)_config.hour);
+  Rtc.SetMemory((uint8_t)1, (uint8_t)_config.minute);
+  Rtc.SetMemory((uint8_t)2, (uint8_t)_config.durationMinutes);
+  Rtc.SetMemory((uint8_t)3, (uint8_t)_config.keepLightOnMinutes);
+  Rtc.SetMemory((uint8_t)4, (uint8_t)_config.utcOffset);
 }
 
 SunriseConfig getSunriseConfig()
