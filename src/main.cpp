@@ -37,11 +37,10 @@ void saveSunriseConfig(SunriseConfig config);
 // Retrieve the sunrise config from the RTC memory
 SunriseConfig getSunriseConfig();
 
-// Connect with the AP (try for 30 seconds), then fetch
-// the sunrise config from the API, set it in the RTC
-// memory, and update the RTC time by fetching the current
-// time from the time API. After that, turn off the
-// WiFi again.
+// Try to connect with the WiFi AP, then fetch the sunrise
+// config from the API, set it in the RTC memory, and
+// update the RTC time by fetching the current time from
+// the time API. After that, turn off WiFi again.
 void updateBoardState();
 
 // Debug function to test the LED PWM. The LED should
