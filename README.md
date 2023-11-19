@@ -25,7 +25,7 @@ I'll probably add more MOSFETs to control more LED strips in the future.
    - Update the `SUNRISE_API_URL` constant in your code to point to your GitHub fork.
 4. **Make It Yours**:
    - Tweak the `/sunrise.json` file in your repo to set up your preferred sunrise times.
-   - Change the WiFi credentials in `/src/secrets.h` to match your network (file is ignored in `.gitignore`).
+   - Copy the `/src/_secrets.h` file, remove the underscore from the file name and change the WiFi credentials to match your network (`/src/secrets.h` is ignored in `.gitignore`).
    - Commit and push your changes to GitHub.
 5. **Flash It**:
    - Build and upload the code to your microcontroller using PlatformIO.
