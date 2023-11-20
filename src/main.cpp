@@ -49,21 +49,13 @@ void updateBoardState();
 // at the bottom.
 void debugLedPwm();
 
-// Blink the LED for the given duration with the given period
-// for debugging purposes.
-void blinkLed(int durationMillis, int periodMillis);
-
 // Start the sunrise sequence with the given config
 void startSunrise(int durationMins, int keepOnForMins);
-
-// Possibly hibernate the board until the specified time. Won't
-// go into hibernation if specified time is close to current time.
-void hibernateUntil(int hour, int minute, int utcOffset);
 
 /**
  * --- Constants ---
  */
-#define UPDATE_BOARD_STATE 0
+#define UPDATE_BOARD_STATE 1
 #define WIFI_ATTEMPT_TIME_SECS 10
 // JSON response from the API:
 // {
@@ -80,13 +72,13 @@ void hibernateUntil(int hour, int minute, int utcOffset);
 //   ...
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
-#define WAIT_FOR_SERIAL_OUTPUT 0
+#define WAIT_FOR_SERIAL_OUTPUT 1
 #define HIBERNATE_AFTER_MINUTES 1
 #define DEBUG_INFO 1
 #define DEBUG_LED_PWM 0
 #define DEBUG_SUNRISE 1
-#define DEBUG_SUNRISE_HOUR 19
-#define DEBUG_SUNRISE_MINUTE 45
+#define DEBUG_SUNRISE_HOUR 20
+#define DEBUG_SUNRISE_MINUTE 26
 #define DEBUG_SUNRISE_DURATION 1
 #define DEBUG_SUNRISE_KEEP_ON_FOR 0
 #define DEBUG_SUNRISE_UTC_OFFSET 1
@@ -166,8 +158,6 @@ void loop()
   config.utcOffset = DEBUG_SUNRISE_UTC_OFFSET;
 #endif
 
-  hibernateUntil(config.hour, config.minute, config.utcOffset);
-
   RtcDateTime now = Rtc.GetDateTime();
   if (now.Hour() + config.utcOffset == config.hour && now.Minute() == config.minute)
   {
@@ -196,6 +186,8 @@ void updateBoardState()
   if (WiFi.status() != WL_CONNECTED)
   {
     Serial.println("Failed to connect to WiFi.");
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
     return;
   }
   Serial.println("Connected to WiFi");
@@ -244,6 +236,7 @@ void updateBoardState()
 
   // Disconnect Wi-Fi
   WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
   Serial.println("Disconnected from WiFi");
 }
 
@@ -335,31 +328,8 @@ void debugLedPwm()
   }
 }
 
-void blinkLed(int durationMillis, int periodMillis)
-{
-  int startMillis = millis();
-  while (1)
-  {
-    int currentMillis = millis();
-    int elapsedMillis = currentMillis - startMillis;
-
-    if (elapsedMillis >= durationMillis)
-    {
-      break;
-    }
-    ledcWrite(PWM_CHANNEL, PWM_MAX_DUTY_CYCLE);
-    delay(periodMillis);
-    ledcWrite(PWM_CHANNEL, 0);
-    delay(periodMillis);
-  }
-}
-
 void startSunrise(int durationMins, int keepOnForMins)
 {
-#if DEBUG_SUNRISE
-  blinkLed(10000, 1000);
-#endif
-
   int durationMillis = durationMins * 60000;
   int startMillis = millis();
   float exponent = 1.8;
@@ -384,49 +354,5 @@ void startSunrise(int durationMins, int keepOnForMins)
 
     ledcWrite(PWM_CHANNEL, dutyCycle);
     delay(20);
-  }
-}
-
-void hibernateUntil(int hour, int minute, int utcOffset)
-{
-#if DEBUG_SUNRISE
-  blinkLed(2000, 200);
-#endif
-
-  int bufferSeconds = 60; // Add a buffer to avoid missing the sunrise when booting up after hibernation
-  RtcDateTime now = Rtc.GetDateTime();
-  RtcDateTime nextSunrise(now.Year(), now.Month(), now.Day(), hour - utcOffset, minute, 0);
-
-  if (nextSunrise < now)
-  {
-    nextSunrise += 86400; // Add one day
-  }
-
-  int secondsUntilNextSunrise = nextSunrise.TotalSeconds() - now.TotalSeconds();
-
-  // Do not immediately hibernate; wait for HIBERNATE_AFTER_MINUTES to allow
-  // flashing the board again if needed.
-  secondsUntilNextSunrise -= HIBERNATE_AFTER_MINUTES * 60;
-
-  if (secondsUntilNextSunrise > bufferSeconds)
-  {
-#if DEBUG_SUNRISE
-    blinkLed(5000, 500);
-#endif
-
-    delay(HIBERNATE_AFTER_MINUTES * 60000);
-
-#if DEBUG_SUNRISE
-    blinkLed(5000, 500);
-#endif
-
-    Serial.print("Hibernating for ");
-    Serial.print(secondsUntilNextSunrise);
-    Serial.println(" seconds");
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-    esp_sleep_enable_timer_wakeup((secondsUntilNextSunrise - bufferSeconds) * 1000000);
-    esp_deep_sleep_start();
   }
 }
