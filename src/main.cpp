@@ -169,7 +169,7 @@ void loop()
 
   if (millis() > bootUpMillis + SLEEP_AFTER_MINUTES * 60000)
   {
-    esp_err_t err = esp_sleep_enable_timer_wakeup(30000000);
+    esp_err_t err = esp_sleep_enable_timer_wakeup(55000000);
     if (err != ESP_OK)
     {
       Serial.println("Error setting up sleep timer");
@@ -182,7 +182,7 @@ void loop()
   }
   else
   {
-    delay(30000);
+    delay(55000);
   }
 }
 
