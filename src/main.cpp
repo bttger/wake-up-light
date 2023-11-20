@@ -49,16 +49,21 @@ void updateBoardState();
 // at the bottom.
 void debugLedPwm();
 
+// Blink the LED for the given duration with the given period
+// for debugging purposes.
+void blinkLed(int durationMillis, int periodMillis);
+
 // Start the sunrise sequence with the given config
 void startSunrise(int durationMins, int keepOnForMins);
 
-// Hibernate the board until the next sunrise
-void hibernateUntilNextSunrise();
+// Possibly hibernate the board until the specified time. Won't
+// go into hibernation if specified time is close to current time.
+void hibernateUntil(int hour, int minute, int utcOffset);
 
 /**
  * --- Constants ---
  */
-#define UPDATE_BOARD_STATE 1
+#define UPDATE_BOARD_STATE 0
 #define WIFI_ATTEMPT_TIME_SECS 10
 // JSON response from the API:
 // {
@@ -76,9 +81,15 @@ void hibernateUntilNextSunrise();
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
 #define WAIT_FOR_SERIAL_OUTPUT 0
-#define HIBERNATE_AFTER_MINUTES 5
+#define HIBERNATE_AFTER_MINUTES 1
 #define DEBUG_INFO 1
 #define DEBUG_LED_PWM 0
+#define DEBUG_SUNRISE 1
+#define DEBUG_SUNRISE_HOUR 19
+#define DEBUG_SUNRISE_MINUTE 45
+#define DEBUG_SUNRISE_DURATION 1
+#define DEBUG_SUNRISE_KEEP_ON_FOR 0
+#define DEBUG_SUNRISE_UTC_OFFSET 1
 #define IO_PIN_LED 5
 #define PWM_CHANNEL 0 // 0-15
 #define PWM_FREQUENCY 5000
@@ -147,7 +158,15 @@ void setup()
 
 void loop()
 {
-  hibernateUntilNextSunrise();
+#if DEBUG_SUNRISE
+  config.hour = DEBUG_SUNRISE_HOUR;
+  config.minute = DEBUG_SUNRISE_MINUTE;
+  config.durationMinutes = DEBUG_SUNRISE_DURATION;
+  config.keepLightOnMinutes = DEBUG_SUNRISE_KEEP_ON_FOR;
+  config.utcOffset = DEBUG_SUNRISE_UTC_OFFSET;
+#endif
+
+  hibernateUntil(config.hour, config.minute, config.utcOffset);
 
   RtcDateTime now = Rtc.GetDateTime();
   if (now.Hour() + config.utcOffset == config.hour && now.Minute() == config.minute)
@@ -250,9 +269,9 @@ void printSunriseConfig(SunriseConfig config)
   Serial.print(config.hour);
   Serial.print(":");
   Serial.print(config.minute);
-  Serial.print(" (");
+  Serial.print(" (duration: ");
   Serial.print(config.durationMinutes);
-  Serial.print(" mins, ");
+  Serial.print(" mins, keep light on: ");
   Serial.print(config.keepLightOnMinutes);
   Serial.print(" mins, UTC");
   Serial.print(config.utcOffset);
@@ -316,8 +335,31 @@ void debugLedPwm()
   }
 }
 
+void blinkLed(int durationMillis, int periodMillis)
+{
+  int startMillis = millis();
+  while (1)
+  {
+    int currentMillis = millis();
+    int elapsedMillis = currentMillis - startMillis;
+
+    if (elapsedMillis >= durationMillis)
+    {
+      break;
+    }
+    ledcWrite(PWM_CHANNEL, PWM_MAX_DUTY_CYCLE);
+    delay(periodMillis);
+    ledcWrite(PWM_CHANNEL, 0);
+    delay(periodMillis);
+  }
+}
+
 void startSunrise(int durationMins, int keepOnForMins)
 {
+#if DEBUG_SUNRISE
+  blinkLed(10000, 1000);
+#endif
+
   int durationMillis = durationMins * 60000;
   int startMillis = millis();
   float exponent = 1.8;
@@ -345,11 +387,15 @@ void startSunrise(int durationMins, int keepOnForMins)
   }
 }
 
-void hibernateUntilNextSunrise()
+void hibernateUntil(int hour, int minute, int utcOffset)
 {
+#if DEBUG_SUNRISE
+  blinkLed(2000, 200);
+#endif
+
   int bufferSeconds = 60; // Add a buffer to avoid missing the sunrise when booting up after hibernation
   RtcDateTime now = Rtc.GetDateTime();
-  RtcDateTime nextSunrise(now.Year(), now.Month(), now.Day(), config.hour - config.utcOffset, config.minute, 0);
+  RtcDateTime nextSunrise(now.Year(), now.Month(), now.Day(), hour - utcOffset, minute, 0);
 
   if (nextSunrise < now)
   {
@@ -364,7 +410,15 @@ void hibernateUntilNextSunrise()
 
   if (secondsUntilNextSunrise > bufferSeconds)
   {
+#if DEBUG_SUNRISE
+    blinkLed(5000, 500);
+#endif
+
     delay(HIBERNATE_AFTER_MINUTES * 60000);
+
+#if DEBUG_SUNRISE
+    blinkLed(5000, 500);
+#endif
 
     Serial.print("Hibernating for ");
     Serial.print(secondsUntilNextSunrise);
