@@ -52,9 +52,6 @@ void debugLedPwm();
 // Start the sunrise sequence with the given config
 void startSunrise(int durationMins, int keepOnForMins);
 
-// Hibernate the board until the next sunrise
-void hibernateUntilNextSunrise();
-
 /**
  * --- Constants ---
  */
@@ -76,9 +73,15 @@ void hibernateUntilNextSunrise();
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
 #define WAIT_FOR_SERIAL_OUTPUT 0
-#define HIBERNATE_AFTER_MINUTES 5
+#define SLEEP_AFTER_MINUTES 5
 #define DEBUG_INFO 1
 #define DEBUG_LED_PWM 0
+#define DEBUG_SUNRISE 0
+#define DEBUG_SUNRISE_HOUR 20
+#define DEBUG_SUNRISE_MINUTE 0
+#define DEBUG_SUNRISE_DURATION 1
+#define DEBUG_SUNRISE_KEEP_ON_FOR 0
+#define DEBUG_SUNRISE_UTC_OFFSET 1
 #define IO_PIN_LED 5
 #define PWM_CHANNEL 0 // 0-15
 #define PWM_FREQUENCY 5000
@@ -91,6 +94,7 @@ void hibernateUntilNextSunrise();
 ThreeWire myWire(11, 12, 10); // DAT/IO, CLK, RST/CE/CS pin connections
 RtcDS1302<ThreeWire> Rtc(myWire);
 SunriseConfig config;
+int bootUpMillis = millis();
 
 /**
  * --- Setup and loop ---
@@ -147,7 +151,13 @@ void setup()
 
 void loop()
 {
-  hibernateUntilNextSunrise();
+#if DEBUG_SUNRISE
+  config.hour = DEBUG_SUNRISE_HOUR;
+  config.minute = DEBUG_SUNRISE_MINUTE;
+  config.durationMinutes = DEBUG_SUNRISE_DURATION;
+  config.keepLightOnMinutes = DEBUG_SUNRISE_KEEP_ON_FOR;
+  config.utcOffset = DEBUG_SUNRISE_UTC_OFFSET;
+#endif
 
   RtcDateTime now = Rtc.GetDateTime();
   if (now.Hour() + config.utcOffset == config.hour && now.Minute() == config.minute)
@@ -156,7 +166,24 @@ void loop()
     printDateTime(now);
     startSunrise(config.durationMinutes, config.keepLightOnMinutes);
   }
-  delay(5000);
+
+  if (millis() > bootUpMillis + SLEEP_AFTER_MINUTES * 60000)
+  {
+    esp_err_t err = esp_sleep_enable_timer_wakeup(30000000);
+    if (err != ESP_OK)
+    {
+      Serial.println("Error setting up sleep timer");
+    }
+    err = esp_light_sleep_start();
+    if (err != ESP_OK)
+    {
+      Serial.println("Error entering light sleep");
+    }
+  }
+  else
+  {
+    delay(30000);
+  }
 }
 
 /**
@@ -167,16 +194,19 @@ void updateBoardState()
 {
   // Connect to Wi-Fi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.println("Connecting to WiFi...");
+  Serial.print("Connecting to WiFi...");
   unsigned long startAttemptTime = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < WIFI_ATTEMPT_TIME_SECS * 1000)
   {
     delay(1000);
     Serial.print(".");
   }
+  Serial.println();
   if (WiFi.status() != WL_CONNECTED)
   {
     Serial.println("Failed to connect to WiFi.");
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
     return;
   }
   Serial.println("Connected to WiFi");
@@ -225,6 +255,7 @@ void updateBoardState()
 
   // Disconnect Wi-Fi
   WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
   Serial.println("Disconnected from WiFi");
 }
 
@@ -250,9 +281,9 @@ void printSunriseConfig(SunriseConfig config)
   Serial.print(config.hour);
   Serial.print(":");
   Serial.print(config.minute);
-  Serial.print(" (");
+  Serial.print(" (duration: ");
   Serial.print(config.durationMinutes);
-  Serial.print(" mins, ");
+  Serial.print(" mins, keep light on: ");
   Serial.print(config.keepLightOnMinutes);
   Serial.print(" mins, UTC");
   Serial.print(config.utcOffset);
@@ -342,37 +373,5 @@ void startSunrise(int durationMins, int keepOnForMins)
 
     ledcWrite(PWM_CHANNEL, dutyCycle);
     delay(20);
-  }
-}
-
-void hibernateUntilNextSunrise()
-{
-  int bufferSeconds = 60; // Add a buffer to avoid missing the sunrise when booting up after hibernation
-  RtcDateTime now = Rtc.GetDateTime();
-  RtcDateTime nextSunrise(now.Year(), now.Month(), now.Day(), config.hour - config.utcOffset, config.minute, 0);
-
-  if (nextSunrise < now)
-  {
-    nextSunrise += 86400; // Add one day
-  }
-
-  int secondsUntilNextSunrise = nextSunrise.TotalSeconds() - now.TotalSeconds();
-
-  // Do not immediately hibernate; wait for HIBERNATE_AFTER_MINUTES to allow
-  // flashing the board again if needed.
-  secondsUntilNextSunrise -= HIBERNATE_AFTER_MINUTES * 60;
-
-  if (secondsUntilNextSunrise > bufferSeconds)
-  {
-    delay(HIBERNATE_AFTER_MINUTES * 60000);
-
-    Serial.print("Hibernating for ");
-    Serial.print(secondsUntilNextSunrise);
-    Serial.println(" seconds");
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-    esp_sleep_enable_timer_wakeup((secondsUntilNextSunrise - bufferSeconds) * 1000000);
-    esp_deep_sleep_start();
   }
 }
