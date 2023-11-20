@@ -72,13 +72,13 @@ void startSunrise(int durationMins, int keepOnForMins);
 //   ...
 // }
 #define TIME_API_URL "http://worldtimeapi.org/api/timezone/Europe/London"
-#define WAIT_FOR_SERIAL_OUTPUT 1
-#define HIBERNATE_AFTER_MINUTES 1
+#define WAIT_FOR_SERIAL_OUTPUT 0
+#define SLEEP_AFTER_MINUTES 5
 #define DEBUG_INFO 1
 #define DEBUG_LED_PWM 0
-#define DEBUG_SUNRISE 1
+#define DEBUG_SUNRISE 0
 #define DEBUG_SUNRISE_HOUR 20
-#define DEBUG_SUNRISE_MINUTE 26
+#define DEBUG_SUNRISE_MINUTE 0
 #define DEBUG_SUNRISE_DURATION 1
 #define DEBUG_SUNRISE_KEEP_ON_FOR 0
 #define DEBUG_SUNRISE_UTC_OFFSET 1
@@ -94,6 +94,7 @@ void startSunrise(int durationMins, int keepOnForMins);
 ThreeWire myWire(11, 12, 10); // DAT/IO, CLK, RST/CE/CS pin connections
 RtcDS1302<ThreeWire> Rtc(myWire);
 SunriseConfig config;
+int bootUpMillis = millis();
 
 /**
  * --- Setup and loop ---
@@ -165,7 +166,24 @@ void loop()
     printDateTime(now);
     startSunrise(config.durationMinutes, config.keepLightOnMinutes);
   }
-  delay(5000);
+
+  if (millis() > bootUpMillis + SLEEP_AFTER_MINUTES * 60000)
+  {
+    esp_err_t err = esp_sleep_enable_timer_wakeup(30000000);
+    if (err != ESP_OK)
+    {
+      Serial.println("Error setting up sleep timer");
+    }
+    err = esp_light_sleep_start();
+    if (err != ESP_OK)
+    {
+      Serial.println("Error entering light sleep");
+    }
+  }
+  else
+  {
+    delay(30000);
+  }
 }
 
 /**
@@ -176,13 +194,14 @@ void updateBoardState()
 {
   // Connect to Wi-Fi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.println("Connecting to WiFi...");
+  Serial.print("Connecting to WiFi...");
   unsigned long startAttemptTime = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < WIFI_ATTEMPT_TIME_SECS * 1000)
   {
     delay(1000);
     Serial.print(".");
   }
+  Serial.println();
   if (WiFi.status() != WL_CONNECTED)
   {
     Serial.println("Failed to connect to WiFi.");
