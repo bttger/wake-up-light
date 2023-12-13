@@ -1,7 +1,7 @@
 {
-  "sunriseHour": 8,
-  "sunriseMinute": 0,
-  "durationMinutes": 60,
-  "keepLightOnMinutes": 30,
+  "sunriseHour": 6,
+  "sunriseMinute": 35,
+  "durationMinutes": 40,
+  "keepLightOnMinutes": 20,
   "utcOffset": 1
 }
