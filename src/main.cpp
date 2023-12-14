@@ -29,6 +29,9 @@ void printDateTime(const RtcDateTime &dt);
 // Print the sunrise config to the serial monitor
 void printSunriseConfig(SunriseConfig config);
 
+// Print debug info to the serial monitor
+void printDebugInfo();
+
 // Set the RTC date and time from Unix epoch time
 void setDateTimeFromUnixEpoch(uint32_t epoch);
 
@@ -129,10 +132,7 @@ void setup()
   config = getSunriseConfig();
 
 #if DEBUG_INFO
-  RtcDateTime now = Rtc.GetDateTime();
-  printDateTime(now);
-  Serial.println();
-  printSunriseConfig(config);
+  printDebugInfo();
 #endif
 
   // Initialize PWM
@@ -146,6 +146,7 @@ void setup()
 
 #if UPDATE_BOARD_STATE
   updateBoardState();
+  printDebugInfo();
 #endif
 }
 
@@ -288,6 +289,15 @@ void printSunriseConfig(SunriseConfig config)
   Serial.print(" mins, UTC");
   Serial.print(config.utcOffset);
   Serial.println(")");
+}
+
+void printDebugInfo()
+{
+  Serial.println("Debug info:");
+  RtcDateTime now = Rtc.GetDateTime();
+  printDateTime(now);
+  Serial.println();
+  printSunriseConfig(config);
 }
 
 void setDateTimeFromUnixEpoch(uint32_t epoch)
