@@ -13,7 +13,7 @@ You'll need a few bits and bobs to get this project shining:
 - **LED Strip**: 12V LED strip for that sunrise glow.
 - **MOSFET**: For controlling the LED strip with PWM. It should support support a drain voltage of at least 12V and a gate voltage of 3.3V. Make sure it can handle the current of your LED strip.
 
-I'll probably add more MOSFETs to control more LED strips in the future.
+I'll probably add more MOSFETs to control more LED strips in the future. Update: I did. I added two more PWM channels to control two more MOSFETs/LEDs. The code is set up to control three LEDs but it doesn't require all three to be connected.
 
 ## Getting Started
 
