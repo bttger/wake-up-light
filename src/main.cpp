@@ -85,8 +85,14 @@ void startSunrise(int durationMins, int keepOnForMins);
 #define DEBUG_SUNRISE_DURATION 1
 #define DEBUG_SUNRISE_KEEP_ON_FOR 0
 #define DEBUG_SUNRISE_UTC_OFFSET 1
-#define IO_PIN_LED 5
-#define PWM_CHANNEL 0 // 0-15
+#define IO_PIN_LED_1 5
+#define IO_PIN_LED_2 6
+#define IO_PIN_LED_3 9
+#define START_LED_2_AFTER_MINS 5
+#define START_LED_3_AFTER_MINS 10
+#define PWM_CHANNEL_1 0 // 0-15
+#define PWM_CHANNEL_2 1
+#define PWM_CHANNEL_3 2
 #define PWM_FREQUENCY 5000
 #define PWM_RESOLUTION 12
 #define PWM_MAX_DUTY_CYCLE pow(2, PWM_RESOLUTION) - 1
@@ -136,11 +142,17 @@ void setup()
 #endif
 
   // Initialize PWM
-  ledcSetup(PWM_CHANNEL, PWM_FREQUENCY, PWM_RESOLUTION);
-  ledcAttachPin(IO_PIN_LED, PWM_CHANNEL);
+  ledcSetup(PWM_CHANNEL_1, PWM_FREQUENCY, PWM_RESOLUTION);
+  ledcAttachPin(IO_PIN_LED_1, PWM_CHANNEL_1);
+
+  ledcSetup(PWM_CHANNEL_2, PWM_FREQUENCY, PWM_RESOLUTION);
+  ledcAttachPin(IO_PIN_LED_2, PWM_CHANNEL_2);
+
+  ledcSetup(PWM_CHANNEL_3, PWM_FREQUENCY, PWM_RESOLUTION);
+  ledcAttachPin(IO_PIN_LED_3, PWM_CHANNEL_3);
 
 #if DEBUG_LED_PWM
-  startSunrise(2, 0);
+  startSunrise(4, 1);
   debugLedPwm();
 #endif
 
@@ -343,7 +355,7 @@ void debugLedPwm()
   while (1)
   {
     dutyCycle += reverse ? -1 : 1;
-    ledcWrite(PWM_CHANNEL, dutyCycle);
+    ledcWrite(PWM_CHANNEL_1, dutyCycle);
     delay(10);
     if (dutyCycle == PWM_MAX_DUTY_CYCLE)
       reverse = 1;
@@ -362,6 +374,10 @@ void startSunrise(int durationMins, int keepOnForMins)
   int durationMillis = durationMins * 60000;
   int startMillis = millis();
   float exponent = 1.8;
+  int led2StartOffsetMillis = START_LED_2_AFTER_MINS * 60000;
+  int led2StartMillis = startMillis + led2StartOffsetMillis;
+  int led3StartOffsetMillis = START_LED_3_AFTER_MINS * 60000;
+  int led3StartMillis = startMillis + led3StartOffsetMillis;
 
   while (1)
   {
@@ -370,18 +386,37 @@ void startSunrise(int durationMins, int keepOnForMins)
 
     if (elapsedMillis >= durationMillis)
     {
-      // Sunrise is over, keep the LED on for some time
+      // Sunrise is over, keep the LEDs on for some time
       delay(keepOnForMins * 60000);
-      ledcWrite(PWM_CHANNEL, 0);
+      ledcWrite(PWM_CHANNEL_1, 0);
+      ledcWrite(PWM_CHANNEL_2, 0);
+      ledcWrite(PWM_CHANNEL_3, 0);
       break;
     }
 
-    // Calculate the exponential duty cycle
+    // Calculate the exponential duty cycle for the first LED
     float progress = (float)elapsedMillis / (float)durationMillis;
     float exponentialProgress = pow(progress, exponent);
     int dutyCycle = (int)(exponentialProgress * PWM_MAX_DUTY_CYCLE);
+    ledcWrite(PWM_CHANNEL_1, dutyCycle);
 
-    ledcWrite(PWM_CHANNEL, dutyCycle);
+    // Adjust duty cycle for LED 2 and LED 3 if they have started
+    if (currentMillis >= led2StartMillis)
+    {
+      float progressLed2 = (float)(currentMillis - led2StartMillis) / (float)(durationMillis - led2StartOffsetMillis);
+      float exponentialProgressLed2 = pow(progressLed2, exponent);
+      int dutyCycleLed2 = (int)(exponentialProgressLed2 * PWM_MAX_DUTY_CYCLE);
+      ledcWrite(PWM_CHANNEL_2, dutyCycleLed2);
+    }
+
+    if (currentMillis >= led3StartMillis)
+    {
+      float progressLed3 = (float)(currentMillis - led3StartMillis) / (float)(durationMillis - led3StartOffsetMillis);
+      float exponentialProgressLed3 = pow(progressLed3, exponent);
+      int dutyCycleLed3 = (int)(exponentialProgressLed3 * PWM_MAX_DUTY_CYCLE);
+      ledcWrite(PWM_CHANNEL_3, dutyCycleLed3);
+    }
+
     delay(20);
   }
 }
